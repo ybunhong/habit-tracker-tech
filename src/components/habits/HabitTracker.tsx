@@ -228,7 +228,7 @@ const HabitTracker = () => {
       )}
 
       {loading ? (
-        <div className="loading">Loading habits...</div>
+        <div className="loading">Loading habits</div>
       ) : (
         <HabitList
           habits={habits}
@@ -241,7 +241,7 @@ const HabitTracker = () => {
 
       {!loading && habits.length === 0 && (
         <div className="empty-state">
-          <p>No habits yet. Start by adding your first habit!</p>
+          <p>No habits yet. Start by adding your first habit</p>
         </div>
       )}
     </div>

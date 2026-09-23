@@ -108,7 +108,7 @@ const HabitForm = ({ habit, onSubmit, onClose }: HabitFormProps) => {
               Cancel
             </button>
             <button type="submit" disabled={loading} className="btn btn-primary">
-              {loading ? 'Saving...' : habit ? 'Update' : 'Add Habit'}
+              {loading ? 'Saving' : habit ? 'Update' : 'Add Habit'}
             </button>
           </div>
         </form>

@@ -69,7 +69,7 @@ const HabitList = ({ habits, getCompletion, onToggle, onEdit, onDelete }: HabitL
                 className="btn-icon"
                 aria-label="Edit habit"
               >
-                ✏️
+                Edit
               </button>
               <button
                 onClick={() => handleDelete(habit.id)}
@@ -77,7 +77,7 @@ const HabitList = ({ habits, getCompletion, onToggle, onEdit, onDelete }: HabitL
                 aria-label="Delete habit"
                 disabled={isDeleting}
               >
-                {isDeleting ? '...' : '🗑️'}
+                {isDeleting ? '...' : 'Delete'}
               </button>
             </div>
           </div>

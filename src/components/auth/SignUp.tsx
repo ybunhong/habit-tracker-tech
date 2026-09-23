@@ -33,7 +33,7 @@ const SignUp = () => {
       <div className="auth-container">
         <div className="auth-form">
           <h2>Check your email</h2>
-          <p>We've sent you a confirmation link. Please check your email to verify your account.</p>
+          <p>We have sent you a confirmation link. Please check your email to verify your account.</p>
           <button onClick={() => navigate('/login')} className="btn">
             Go to Login
           </button>
@@ -72,7 +72,7 @@ const SignUp = () => {
             />
           </div>
           <button type="submit" disabled={loading} className="btn">
-            {loading ? 'Creating account...' : 'Sign Up'}
+            {loading ? 'Creating account' : 'Sign Up'}
           </button>
         </form>
         <p className="auth-link">
