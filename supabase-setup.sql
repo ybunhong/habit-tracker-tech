@@ -1,3 +1,82 @@
+-- Create profiles table for user avatars
+CREATE TABLE profiles (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  avatar_url TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on profiles table
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for profiles table
+-- Users can only view their own profile
+CREATE POLICY "Users can view own profile" 
+ON profiles FOR SELECT 
+USING (auth.uid() = user_id);
+
+-- Users can insert their own profile
+CREATE POLICY "Users can insert own profile" 
+ON profiles FOR INSERT 
+WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own profile
+CREATE POLICY "Users can update own profile" 
+ON profiles FOR UPDATE 
+USING (auth.uid() = user_id);
+
+-- Create index for better performance
+CREATE INDEX idx_profiles_user_id ON profiles(user_id);
+
+-- Storage setup for avatars
+-- Run these commands in Supabase dashboard SQL editor or via CLI
+
+-- Create avatars bucket (public)
+INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true);
+
+-- Storage policies for avatars bucket
+-- Users can only upload to their own folder (auth.uid())
+CREATE POLICY "Users can upload to own folder" 
+ON storage.objects FOR INSERT 
+TO authenticated
+WITH CHECK (
+  bucket_id = 'avatars' 
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Users can only view their own files
+CREATE POLICY "Users can view own files" 
+ON storage.objects FOR SELECT 
+TO authenticated
+USING (
+  bucket_id = 'avatars' 
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Users can only update their own files
+CREATE POLICY "Users can update own files" 
+ON storage.objects FOR UPDATE 
+TO authenticated
+USING (
+  bucket_id = 'avatars' 
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Users can only delete their own files
+CREATE POLICY "Users can delete own files" 
+ON storage.objects FOR DELETE 
+TO authenticated
+USING (
+  bucket_id = 'avatars' 
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Allow public read access to avatars (for displaying images)
+CREATE POLICY "Public can view avatars" 
+ON storage.objects FOR SELECT 
+TO public
+USING (bucket_id = 'avatars');
+
 -- Create habits table
 CREATE TABLE habits (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

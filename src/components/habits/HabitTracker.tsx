@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import HabitForm from './HabitForm'
 import HabitList from './HabitList'
+import AvatarUpload from '../AvatarUpload'
+import ErrorBoundary from '../ErrorBoundary'
 
 interface Habit {
   id: string
@@ -25,6 +27,13 @@ interface DailyLog {
   created_at: string
 }
 
+interface Profile {
+  id: string
+  user_id: string
+  avatar_url: string | null
+  updated_at: string
+}
+
 const HabitTracker = () => {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
@@ -35,11 +44,13 @@ const HabitTracker = () => {
   const [showForm, setShowForm] = useState(false)
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
       fetchHabits()
       fetchDailyLogs()
+      fetchProfile()
     }
   }, [user, selectedDate])
 
@@ -76,6 +87,36 @@ const HabitTracker = () => {
       setDailyLogs(data || [])
     } catch (err: any) {
       setError(err.message)
+    }
+  }
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('user_id', user.id)
+        .single()
+
+      if (error) {
+        // Profile might not exist yet, that's okay
+        if (error.code === 'PGRST116') {
+          // No rows returned
+          return
+        }
+        throw error
+      }
+
+      if (data && data.avatar_url) {
+        // Add cache-busting parameter to loaded avatar URL
+        const cacheBustedUrl = data.avatar_url.includes('?') 
+          ? data.avatar_url 
+          : `${data.avatar_url}?t=${Date.now()}`
+        setAvatarUrl(cacheBustedUrl)
+      }
+    } catch (err: any) {
+      console.error('Error fetching profile:', err)
+      // Don't set error state for profile fetch failures, just log it
     }
   }
 
@@ -197,53 +238,70 @@ const HabitTracker = () => {
     return log?.completed || false
   }
 
+  const handleAvatarUpdate = (url: string) => {
+    setAvatarUrl(url)
+  }
+
   return (
     <div className="habit-tracker">
-      <header className="tracker-header">
-        <h1>Habit Tracker</h1>
-        <div className="header-actions">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="date-picker"
-          />
-          <button onClick={() => setShowForm(true)} className="btn btn-primary">
-            Add Habit
-          </button>
-          <button onClick={handleSignOut} className="btn btn-secondary">
-            Sign Out
-          </button>
-        </div>
-      </header>
+      <ErrorBoundary sectionName="Avatar Section">
+        <AvatarUpload 
+          currentAvatarUrl={avatarUrl}
+          onAvatarUpdate={handleAvatarUpdate}
+          onSignOut={handleSignOut}
+        />
+      </ErrorBoundary>
+
+      <ErrorBoundary sectionName="Header Section">
+        <header className="tracker-header">
+          <h1>Habit Tracker</h1>
+          <div className="header-actions">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="date-picker"
+            />
+            <button onClick={() => setShowForm(true)} className="btn btn-primary">
+              Add Habit
+            </button>
+          </div>
+        </header>
+      </ErrorBoundary>
 
       {error && <div className="error-message">{error}</div>}
 
-      {showForm && (
-        <HabitForm
-          habit={editingHabit}
-          onSubmit={editingHabit ? (data) => updateHabit(editingHabit.id, data) : addHabit}
-          onClose={handleFormClose}
-        />
-      )}
+      <ErrorBoundary sectionName="Habit Form">
+        {showForm && (
+          <HabitForm
+            habit={editingHabit}
+            onSubmit={editingHabit ? (data) => updateHabit(editingHabit.id, data) : addHabit}
+            onClose={handleFormClose}
+          />
+        )}
+      </ErrorBoundary>
 
-      {loading ? (
-        <div className="loading">Loading habits</div>
-      ) : (
-        <HabitList
-          habits={habits}
-          getCompletion={getHabitCompletion}
-          onToggle={toggleHabitCompletion}
-          onEdit={handleEdit}
-          onDelete={deleteHabit}
-        />
-      )}
+      <ErrorBoundary sectionName="Habit List">
+        {loading ? (
+          <div className="loading">Loading habits</div>
+        ) : (
+          <HabitList
+            habits={habits}
+            getCompletion={getHabitCompletion}
+            onToggle={toggleHabitCompletion}
+            onEdit={handleEdit}
+            onDelete={deleteHabit}
+          />
+        )}
+      </ErrorBoundary>
 
-      {!loading && habits.length === 0 && (
-        <div className="empty-state">
-          <p>No habits yet. Start by adding your first habit</p>
-        </div>
-      )}
+      <ErrorBoundary sectionName="Empty State">
+        {!loading && habits.length === 0 && (
+          <div className="empty-state">
+            <p>No habits yet. Start by adding your first habit</p>
+          </div>
+        )}
+      </ErrorBoundary>
     </div>
   )
 }
