@@ -22,9 +22,9 @@ interface HabitListProps {
 const HabitList = ({ habits, getCompletion, onToggle, onEdit, onDelete }: HabitListProps) => {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   
-  if (habits.length > 0) {
-    throw new Error('Test error in HabitList component')
-  }
+  // if (habits.length > 0) {
+  //   throw new Error('Test error in HabitList component')
+  // }
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this habit? This will also delete all associated logs.')) {
