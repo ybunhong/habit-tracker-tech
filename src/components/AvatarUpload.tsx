@@ -207,7 +207,13 @@ const AvatarUpload = ({ currentAvatarUrl, onAvatarUpdate, onSignOut }: AvatarUpl
       <div className="avatar-content">
         <div className="avatar-preview">
           {displayUrl ? (
-            <img src={displayUrl} alt="Avatar" />
+            <img 
+              src={displayUrl} 
+              alt="Avatar" 
+              loading="lazy"
+              width="80"
+              height="80"
+            />
           ) : (
             <span className="avatar-preview-placeholder">
               {user?.email?.[0]?.toUpperCase() || '?'}
