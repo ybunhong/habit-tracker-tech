@@ -4,6 +4,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import SignIn from './components/auth/SignIn'
 import SignUp from './components/auth/SignUp'
 import HabitTracker from './components/habits/HabitTracker'
+import PWABadge from './components/PWARegistration'
 import './App.css'
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
             />
             <Route path="/" element={<SignIn />} />
           </Routes>
+          <PWABadge />
         </div>
       </Router>
     </AuthProvider>

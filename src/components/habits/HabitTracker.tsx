@@ -27,13 +27,6 @@ interface DailyLog {
   created_at: string
 }
 
-interface Profile {
-  id: string
-  user_id: string
-  avatar_url: string | null
-  updated_at: string
-}
-
 const HabitTracker = () => {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
@@ -45,6 +38,8 @@ const HabitTracker = () => {
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [offlineQueue, setOfflineQueue] = useState<any[]>([])
 
   useEffect(() => {
     if (user) {
@@ -54,6 +49,25 @@ const HabitTracker = () => {
     }
   }, [user, selectedDate])
 
+  // Online/offline detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true)
+      syncOfflineQueue()
+    }
+    const handleOffline = () => {
+      setIsOnline(false)
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
   const fetchHabits = async () => {
     try {
       setLoading(true)
@@ -62,7 +76,7 @@ const HabitTracker = () => {
       const { data, error } = await supabase
         .from('habits')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -95,7 +109,7 @@ const HabitTracker = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('avatar_url')
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
         .single()
 
       if (error) {
@@ -127,7 +141,7 @@ const HabitTracker = () => {
         .from('habits')
         .insert({
           ...habitData,
-          user_id: user.id,
+          user_id: user?.id,
         })
         .select()
         .single()
@@ -149,7 +163,7 @@ const HabitTracker = () => {
         .from('habits')
         .update(habitData)
         .eq('id', id)
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
         .select()
         .single()
 
@@ -170,7 +184,7 @@ const HabitTracker = () => {
         .from('habits')
         .delete()
         .eq('id', id)
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
 
       if (error) throw error
       setHabits(habits.filter(h => h.id !== id))
@@ -242,8 +256,81 @@ const HabitTracker = () => {
     setAvatarUrl(url)
   }
 
+  const handleShare = async () => {
+    const shareData = {
+      title: 'Habit Tracker',
+      text: 'Check out my habit tracking progress',
+      url: window.location.href
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData)
+      } else {
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(shareData.url)
+        alert('Link copied to clipboard')
+      }
+    } catch (err) {
+      console.error('Error sharing:', err)
+    }
+  }
+
+  const syncOfflineQueue = async () => {
+    if (offlineQueue.length === 0) return
+
+    for (const item of offlineQueue) {
+      try {
+        if (item.type === 'addHabit') {
+          await addHabit(item.data)
+        } else if (item.type === 'toggleHabit') {
+          await toggleHabitCompletion(item.habitId)
+        }
+      } catch (err) {
+        console.error('Failed to sync offline item:', err)
+      }
+    }
+
+    setOfflineQueue([])
+  }
+
+  const addHabitOffline = (habitData: any) => {
+    if (!isOnline) {
+      setOfflineQueue([...offlineQueue, { type: 'addHabit', data: habitData }])
+      // Optimistic update
+      const tempHabit = {
+        ...habitData,
+        id: `temp-${Date.now()}`,
+        user_id: user?.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      setHabits([tempHabit, ...habits])
+      return Promise.resolve({ success: true })
+    }
+    return addHabit(habitData)
+  }
+
+  const toggleHabitCompletionOffline = (habitId: string) => {
+    if (!isOnline) {
+      setOfflineQueue([...offlineQueue, { type: 'toggleHabit', habitId }])
+      // Optimistic update
+      setDailyLogs(dailyLogs.map(log => 
+        log.habit_id === habitId 
+          ? { ...log, completed: !log.completed } 
+          : log
+      ))
+      return
+    }
+    toggleHabitCompletion(habitId)
+  }
+
   return (
     <div className="habit-tracker">
+      <div className={`offline-banner ${!isOnline ? 'show' : ''}`}>
+        You are offline. Changes will sync when you reconnect.
+      </div>
+      
       <ErrorBoundary sectionName="Avatar Section">
         <AvatarUpload 
           currentAvatarUrl={avatarUrl}
@@ -256,13 +343,18 @@ const HabitTracker = () => {
         <header className="tracker-header">
           <h1>Habit Tracker</h1>
           <div className="header-actions">
+            <label htmlFor="date-picker" className="visually-hidden">Select Date</label>
             <input
+              id="date-picker"
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="date-picker"
             />
-            <button onClick={() => setShowForm(true)} className="btn btn-primary">
+            <button onClick={handleShare} className="btn btn-secondary share-btn" aria-label="Share habit tracker">
+              Share
+            </button>
+            <button onClick={() => setShowForm(true)} className="btn btn-primary" aria-label="Add new habit">
               Add Habit
             </button>
           </div>
@@ -275,7 +367,7 @@ const HabitTracker = () => {
         {showForm && (
           <HabitForm
             habit={editingHabit}
-            onSubmit={editingHabit ? (data) => updateHabit(editingHabit.id, data) : addHabit}
+            onSubmit={editingHabit ? (data) => updateHabit(editingHabit.id, data) : (data) => addHabitOffline(data)}
             onClose={handleFormClose}
           />
         )}
@@ -288,7 +380,7 @@ const HabitTracker = () => {
           <HabitList
             habits={habits}
             getCompletion={getHabitCompletion}
-            onToggle={toggleHabitCompletion}
+            onToggle={toggleHabitCompletionOffline}
             onEdit={handleEdit}
             onDelete={deleteHabit}
           />

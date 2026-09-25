@@ -1,10 +1,12 @@
 /// <reference types="vite/client" />
 
-interface ImportMetaEnv {
-  readonly VITE_SUPABASE_URL: string
-  readonly VITE_SUPABASE_ANON_KEY: string
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv
+declare module 'virtual:pwa-register/react' {
+  export function useRegisterSW(options?: {
+    onRegisteredSW?: (swUrl: string, r: any) => void
+    onRegisterError?: (error: any) => void
+  }): {
+    offlineReady: [boolean, (value: boolean) => void]
+    needRefresh: [boolean, (value: boolean) => void]
+    updateServiceWorker: (reloadPage?: boolean) => Promise<void>
+  }
 }
